@@ -18,9 +18,9 @@ knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
 
 # 1. Introduction
 
-This is a report on Anomaly Detection and Conditional Monitoring. The dataset can be downloaded from [http://data-acoustics.com/measurements/bearing-faults/bearing-4/](http://data-acoustics.com/measurements/bearing-faults/bearing-4/). This is a NASA.gov website. I used this open data to reproduce a very similar scenario with which I am feguring out in a Big Manufactoring Company. It is going to implement a project in the domain of Predictive Maintenance. The real data are not available (no disclosure agreement was released) for this analysis but the data set I found is very similar to my real scenario. NASA.gov website requires to download a huge file named "IMS.7z". It contains several .txt files. Each one of them contains some vibration signal rows recorded at specific intervals. The sampling rate used was set at 20 kHz. The file name shows when the data was collected.
-So, to permit to have an easy download I elaborated .txt files to merge them in a single .csv file operating a little resampling of data. At the end the data frame has 6324 rows and 5 columns (TimeStamp and four Bearings Vibration Values). The goal of this analysis is to demostrate how the Machine Learning algorithms can detect in advance engine feilures. This study can be applied to any kind of engine using special sensors named "Accelerometer" (in our scenario four of them) oriented toward the engine to catch its vibrations.
-The .csv file cn be downloaded from [https://raw.githubusercontent.com/PaoloDePiante/Anomaly_Detection/master/Dataset_for_Bearing.csv](https://raw.githubusercontent.com/PaoloDePiante/Anomaly_Detection/master/Dataset_for_Bearing.csv). I used GitHub to give access to the pre-processed NASA.dov data set ... so I used it as a data set repository too.
+This is a report on Anomaly Detection and Conditional Monitoring. The dataset can be downloaded from [http://data-acoustics.com/measurements/bearing-faults/bearing-4/](http://data-acoustics.com/measurements/bearing-faults/bearing-4/). This is a NASA.gov website. I used this open data to reproduce a very similar scenario with which I am figuring out in a Big Manufactoring Company. It is going to implement a project in the domain of Predictive Maintenance. The real data are not available (no disclosure agreement was released) for this analysis but the data set I found is very similar to real scenario. NASA.gov website requires to download a huge file named "IMS.7z". It contains several .txt files. Each one of them contains several vibration signal rows recorded at specific intervals. The sampling rate used was set at 20 kHz. The file name shows when the data was collected.
+So, I elaborated .txt files to merge them in a single .csv file operating a little resampling of data. The final data frame has 6324 rows and 5 columns (TimeStamp and four Bearings Vibration). The goal of this analysis is to demostrate how the Machine Learning algorithms can detect engine feilures in advance. This study can be applied to any kind of engine using special sensors named "Accelerometer" (in our scenario four of them) oriented toward the engine to catch its vibrations.
+The .csv file can be downloaded from [https://raw.githubusercontent.com/PaoloDePiante/Anomaly_Detection/master/Dataset_for_Bearing.csv](https://raw.githubusercontent.com/PaoloDePiante/Anomaly_Detection/master/Dataset_for_Bearing.csv). I used GitHub to give access to the pre-processed NASA.dov data set. In this way, I used it as a data set repository too.
 The study has been inspired by HarvardX & edX "Data Science: Capstone" MOOC. Many Thanks to Professor Rafael Irizarry for his Data Science Certification Program provided by edX.
 
 
@@ -40,17 +40,19 @@ library(scales)
 ```
 
 
-After the data set is downloaded, basically two main data partitions has been defined: "Train Set" to train the model on the "Normal" running state of the Engine; "Test Set" to isolate the anomaly and test the model. The TimeStamp has been managed by "POSIXct" function. After that the Training Data have been plotted. Based on that I decided to normalize them using the min and max scalar method. The Formula I used is the following:
+After the data set is downloaded, basically two main data partitions have been defined: "Train Set" to train the model on the "Normal" running state of the Engine; "Test Set" to isolate the anomaly and test the model. The TimeStamp has been managed by "POSIXct" function. After that the Training Data have been plotted. Based on that I decided to normalize them using the min and max scalar method. The Formula I used is the following:
 
 $$ X^, = a + {\frac{(x-x_{min})(b-a)}{(x_{max}-x_{min})}}$$
 
-I am going to normlize data in the range [0.1] so a = 0 and b = 1. This is done both for Train and Test set.
+I am going to normalize data in the range [0.1] so a = 0 and b = 1. This is done both for the Train and the Test set.
 
 
 ```{r Load Data Set, message=FALSE, warning=FALSE, results='hide'}
 # Downlod Data set from GitHub
 
-dat <- read.csv(url("https://raw.githubusercontent.com/PaoloDePiante/Anomaly_Detection/master/Dataset_for_Bearing.csv"), sep=",", header = TRUE)
+dat <- read.csv(url(
+"https://raw.githubusercontent.com/PaoloDePiante/Anomaly_Detection/
+master/Dataset_for_Bearing.csv"), sep=",", header = TRUE)
 
 ```
 ```{r Data Preparation, message=FALSE, warning=FALSE}
@@ -65,7 +67,7 @@ train_set <- dat[which((as.POSIXct(dat$TS, origin="1970-01-01", tz="UTC") >=
                 as.POSIXct('2004-04-14 20:51:57', origin="1970-01-01", tz="UTC"))),]
 
 test_set <- dat[which(as.POSIXct(dat$TS, origin="1970-01-01", tz="UTC") >= 
-                        as.POSIXct('2004-04-14 20:51:01', origin="1970-01-01", tz="UTC")),]
+                as.POSIXct('2004-04-14 20:51:01', origin="1970-01-01", tz="UTC")),]
 
 # Looking to Training Data for all Bearings 
 # par(mfrow=c(4,1))
@@ -86,32 +88,35 @@ min_max_train <- c(min(train_set$Bearing.1),max(train_set$Bearing.1),
 
 Z_train_set <- train_set %>% mutate(Bearing.1 =
 ((train_set$Bearing.1-min_max_train[1])/(min_max_train[2]-min_max_train[1])),
-                                    Bearing.2 = ((train_set$Bearing.2-min_max_train[3])/(min_max_train[4]-min_max_train[3])),
-                                    Bearing.3 = ((train_set$Bearing.3-min_max_train[5])/(min_max_train[6]-min_max_train[5])),
-                                    Bearing.4 = ((train_set$Bearing.4-min_max_train[7])/(min_max_train[8]-min_max_train[7])))
+                                    Bearing.2 =
+  ((train_set$Bearing.2-min_max_train[3])/(min_max_train[4]-min_max_train[3])),
+                                    Bearing.3 =
+  ((train_set$Bearing.3-min_max_train[5])/(min_max_train[6]-min_max_train[5])),
+                                    Bearing.4 =
+  ((train_set$Bearing.4-min_max_train[7])/(min_max_train[8]-min_max_train[7])))
 
 Z_test_set <- test_set %>% mutate(Bearing.1 = 
 ((test_set$Bearing.1-min_max_train[1])/(min_max_train[2]-min_max_train[1])),
                                   Bearing.2 =
-((test_set$Bearing.2-min_max_train[3])/(min_max_train[4]-min_max_train[3])),
+  ((test_set$Bearing.2-min_max_train[3])/(min_max_train[4]-min_max_train[3])),
                                   Bearing.3 = 
-((test_set$Bearing.3-min_max_train[5])/(min_max_train[6]-min_max_train[5])),
+  ((test_set$Bearing.3-min_max_train[5])/(min_max_train[6]-min_max_train[5])),
                                   Bearing.4 = 
-((test_set$Bearing.4-min_max_train[7])/(min_max_train[8]-min_max_train[7])))
+  ((test_set$Bearing.4-min_max_train[7])/(min_max_train[8]-min_max_train[7])))
 
 
 ```
 
 ## 2.2 Building the Model and Data Processing
 
-Based on the nature of the data set, it worth the pain to reduce to only two principal components the sensor readings for training data normalized. Once I obtained the two main components, I calculated the prediction using test data normalized.
-After that, I calculated three main values for the two Train Principal Components: the covariance matrix (I decided to use it because the unit of measure is the same so it can be used. It doesn't need to use the correlation matrix.); the inverse of covariance matrix; the columns average. Using these values I calculated the Mahalanobis distance both for Test and Train PCA data frame. The Mahalanobis distance can also be defined as a dissimilarity measure between an observation 
-${\displaystyle {\vec {x}}=(x_{1},x_{2},x_{3},\dots ,x_{N})^{T}}$ from a set of observations with mean 
-${\displaystyle {\vec {\mu }}=(\mu _{1},\mu _{2},\mu _{3},\dots ,\mu _{N})^{T}}$ and covariance matrix S. The Formula is:
+Based on the nature of the data set we could deal with high dimensional sensors data so it is always suggested to try to reduce the complexity to only two principal components starting from training data normalized. Once I obtained the two main components, I calculated the prediction using normalized test data.
+After that, I calculated three main values for the two Train Principal Components: the covariance matrix (I decided to use it because they have the same unit of measure); the inverse of covariance matrix; the columns average. Using these values I calculated the Mahalanobis distance both for the Test and the Train PCA data frame. The Mahalanobis distance can also be defined as a dissimilarity measure between an observation 
+${\displaystyle {\vec {x}}=(x_{1},x_{2},x_{3},\dots ,x_{N})^{T}}$ and a set of observations, with mean 
+${\displaystyle {\vec {\mu }}=(\mu _{1},\mu _{2},\mu _{3},\dots ,\mu _{N})^{T}}$ and covariance matrix S. The formula is:
 
 $$D_M ( \vec{x}) = {\sqrt {({\vec {x}}-{\mu})^{T}S^{-1}({\vec {x}}-{\mu})}}$$
 
-Last step of this section is related to the Threshold calculation. This Threshold permit us to identify outliers to identify anomalies. From the graph it appears quite clear that if we multiplay for 3 $\sigma$ from the central value we could likely identify an anomaly behaviour. The Threshold is equal to 3.826834.
+The final step of this section is related to the Threshold calculation. This Threshold permits us to identify outliers to identify anomalies. From the graph it appears quite clear that if we multiply by 3 $\sigma$ the central value we could likely identify an anomaly behaviour. The Threshold is equal to 3.826834.
 
 ```{r basic exploration, message=FALSE, warning=FALSE}
 # par(mfrow=c(1,1))
@@ -160,7 +165,7 @@ threshold
 
 ```
 
-Now, the scope is to visualize data for the entire period combining Train and Test data sets once again. The Graph shows the data sensors over the entire time period. It is possible to note tht the blue line remains under the red line (the threshold) until an anomaly arose. Already in some points the blue line touched the red one but just for a while. Differently, when the engine had a failure the blue line went decisively over the threshold.
+Now, the scope is to visualize data for the entire period combining Train and Test data sets once again. The Graph shows the data sensors over the entire time period. It is possible to note that the blue line remains under the red line (the threshold) until an anomaly arose. Already in some points the blue line touched the red one but just for a while. Differently, when the engine had a failure the blue line went decisively over the threshold.
 
 
 ```{r Visualization, message=FALSE, warning=FALSE}
@@ -192,7 +197,7 @@ p + scale_x_datetime(breaks = date_breaks("1 week"), name = "Time Monitoring") +
 
 # 3. Results
 
-If we zoom insde the Graph in the last period just before the fault, we notice that we have been able to predict at least two days and half in advnce the engine failure. Obiously it depends on the engine but it demostrates that the model built can alert the supervisor in advnce suggesting him to do a predictive maintenance before the engine stop and the complete out of order of the production machine.
+If we zoom insde the Graph in the last period just before the fault, we notice that we have been able to predict the engine failure two days and half in advance. Obviously, the accuracy of the predictions depends on the engine but this approach demostrates that the model built can alert the supervisor in advance, warning him to perform a preventive maintenance long before the engine stops, to lessen the likelihood of failure and breakdown of the production machine.
 
 ```{r results, message=FALSE, warning=FALSE, echo=FALSE}
 # A zoom on the failure point
@@ -212,7 +217,7 @@ p + scale_x_datetime(breaks = date_breaks("1 day"), name = "Time Monitoring") +
 
 # 4. Conclusions
 
-Lots of documentation is available on the net on this topic. Anomaly Detection and Contitional Monitoring can be implemented by a Deep Learning approach too. Most of the times it seems that good results comes without to implement sofisticated algorithms. This is an example. Using tools like a PCA and a Mahalanobis distance it seems that the model is good enough to save money and time. Based on my real data I obtained similar result very appreciated by the Customer. 
+Abundent documentation on this topic is available on the net. Anomaly Detection and Condition Monitoring can be implemented by a Deep Learning approach too. Most of the times it seems that good results comes without the need of implementing sofisticated algorithms. This is an example. Using tools like a PCA and a Mahalanobis distance it seems that the model is good enough to save money and time. Based on my real data I obtained similar results, which were very appreciated by the Customer. 
 
 Special thanks to Professor Rafael Irizarry and to the edX staff.
 
